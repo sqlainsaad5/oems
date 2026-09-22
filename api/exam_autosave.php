@@ -55,5 +55,9 @@ if (strtotime($attempt['ends_at']) <= time()) {
 }
 
 $answers = (array)($_POST['answers'] ?? []);
+$sectionId = (int)($_POST['section_id'] ?? 0);
+if ($sectionId && is_section_completed($examId, $sid, $sectionId)) {
+    json_response(['ok' => false, 'error' => 'Section locked', 'locked' => true], 403);
+}
 save_student_answers($examId, $sid, $answers, false);
 json_response(['ok' => true, 'saved_at' => date('c'), 'count' => count($answers)]);

@@ -52,6 +52,7 @@ function save_student_answers(int $examId, int $studentId, array $answers, bool 
     $valid = db()->prepare('SELECT question_id FROM exam_questions WHERE exam_id=?');
     $valid->execute([$examId]);
     $allowed = array_map('intval', $valid->fetchAll(PDO::FETCH_COLUMN));
+    $locked = locked_question_ids($examId, $studentId);
     $stmt = db()->prepare(
         'INSERT INTO student_answers (exam_id, student_id, question_id, answer_text, auto_saved_at, submitted_at)
          VALUES (?,?,?,?,NOW(),?)
@@ -60,6 +61,10 @@ function save_student_answers(int $examId, int $studentId, array $answers, bool 
     foreach ($answers as $qid => $text) {
         $qid = (int)$qid;
         if (!in_array($qid, $allowed, true)) {
+            continue;
+        }
+        // Quiz-app lock: never overwrite answers from completed sections
+        if (in_array($qid, $locked, true)) {
             continue;
         }
         $stmt->execute([
@@ -103,6 +108,30 @@ function mark_section_completed(int $examId, int $studentId, int $sectionId): vo
          VALUES (?,?,?,'completed',NOW(),NOW())
          ON DUPLICATE KEY UPDATE status='completed', completed_at=NOW()"
     )->execute([$examId, $studentId, $sectionId]);
+}
+
+function is_section_completed(int $examId, int $studentId, int $sectionId): bool
+{
+    $st = db()->prepare(
+        "SELECT 1 FROM exam_section_progress
+         WHERE exam_id=? AND student_id=? AND section_id=? AND status='completed' LIMIT 1"
+    );
+    $st->execute([$examId, $studentId, $sectionId]);
+    return (bool)$st->fetchColumn();
+}
+
+/** Question IDs that belong to completed (locked) sections for this attempt */
+function locked_question_ids(int $examId, int $studentId): array
+{
+    $st = db()->prepare(
+        "SELECT eq.question_id
+         FROM exam_questions eq
+         JOIN exam_section_progress esp
+           ON esp.section_id=eq.section_id AND esp.exam_id=eq.exam_id
+         WHERE eq.exam_id=? AND esp.student_id=? AND esp.status='completed'"
+    );
+    $st->execute([$examId, $studentId]);
+    return array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
 }
 
 function all_sections_completed(int $examId, int $studentId): bool
