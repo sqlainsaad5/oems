@@ -1,0 +1,9 @@
+Options -Indexes
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+</IfModule>
+
+# Protect backups and includes
+RedirectMatch 403 (?i)/backups/
+RedirectMatch 403 (?i)/includes/
+RedirectMatch 403 (?i)/storage/

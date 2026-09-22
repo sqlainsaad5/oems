@@ -1,0 +1,67 @@
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+credentials.json
+
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Logs & caches
+*.log
+logs/
+cache/
+tmp/
+temp/
+*.cache
+
+# PHP dependencies (if added later)
+/vendor/
+composer.lock
+
+# Node (if frontend tooling added later)
+/node_modules/
+npm-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Local DB dumps & backups
+*.sql.gz
+*.sql.bak
+/backups/*
+!/backups/.gitkeep
+
+# User uploads — keep security stubs + sample CSV only
+/uploads/*
+!/uploads/.htaccess
+!/uploads/index.php
+!/uploads/sample_students.csv
+!/uploads/.gitkeep
+
+# XAMPP / local runtime noise
+error_log
+access.log
+php_errorlog
+
+# Install lock / local state (if created later)
+.installed
+install.lock
+
+# Temp PDF extraction / working images (not part of the app)
+_pdf_imgs/

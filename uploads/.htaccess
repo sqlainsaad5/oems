@@ -1,0 +1,6 @@
+# Protect upload directory from script execution
+<FilesMatch "\.(?i:php|phtml|php3|php4|php5|phar)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+</FilesMatch>
