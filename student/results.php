@@ -24,7 +24,11 @@ $raw = $results->fetchAll();
 $enriched = [];
 foreach ($raw as $r) {
     $peers = db()->prepare(
-        "SELECT student_id, percentage FROM results WHERE exam_id=? AND status='published' ORDER BY percentage DESC, obtained_marks DESC"
+        "SELECT r.student_id, r.percentage, r.obtained_marks, r.total_marks, e.passing_marks
+         FROM results r
+         JOIN exams e ON e.id=r.exam_id
+         WHERE r.exam_id=? AND r.status='published'
+         ORDER BY r.percentage DESC, r.obtained_marks DESC"
     );
     $peers->execute([(int)$r['exam_id']]);
     $peerRows = attach_result_ranks($peers->fetchAll());

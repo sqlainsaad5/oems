@@ -265,7 +265,12 @@ function attach_result_ranks(array $results): array
         }
         $r['rank'] = $rank;
         $r['rank_label'] = ordinal_rank($rank);
-        $r['pass_fail'] = exam_pass_fail($r, (float)$r['obtained_marks'], (float)$r['total_marks'], $pct);
+        $r['pass_fail'] = exam_pass_fail(
+            $r,
+            (float)($r['obtained_marks'] ?? 0),
+            (float)($r['total_marks'] ?? 0),
+            $pct
+        );
     }
     unset($r);
     return $results;
