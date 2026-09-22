@@ -1224,3 +1224,141 @@ body.exam-gate .app-shell { grid-template-columns: 1fr; }
   .landing-section { padding: 64px 20px; }
   .table th, .table td { padding: 10px 12px; }
 }
+
+/* Official transcript (UC05) */
+.transcript-sheet {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 28px 28px 36px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  max-width: 920px;
+  margin: 0 auto 24px;
+}
+.transcript-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 2px solid #0f766e;
+  padding-bottom: 16px;
+  margin-bottom: 18px;
+}
+.transcript-eyebrow {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-size: .75rem;
+  color: var(--muted);
+}
+.transcript-head h1 {
+  margin: 4px 0;
+  font-size: 1.55rem;
+  color: #134e4a;
+  font-family: var(--font-display);
+}
+.transcript-sub { margin: 0; color: var(--muted); }
+.transcript-meta-box {
+  min-width: 180px;
+  display: grid;
+  gap: 8px;
+  text-align: right;
+}
+.transcript-meta-box span,
+.transcript-grid span {
+  display: block;
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+}
+.transcript-student h2,
+.transcript-sem h2,
+.transcript-summary h2 {
+  margin: 0 0 10px;
+  font-size: 1.05rem;
+}
+.transcript-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 18px;
+  margin-bottom: 18px;
+}
+.transcript-sem { margin-top: 18px; }
+.transcript-sem-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.transcript-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .9rem;
+}
+.transcript-table th,
+.transcript-table td {
+  border: 1px solid #e2e8f0;
+  padding: 8px 10px;
+  text-align: left;
+}
+.transcript-table th {
+  background: #f0fdfa;
+  color: #134e4a;
+  font-weight: 600;
+}
+.transcript-summary {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px dashed #cbd5e1;
+}
+.transcript-note {
+  margin: 14px 0 0;
+  font-size: .8rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.transcript-foot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 36px;
+  position: relative;
+}
+.sign-line {
+  border-bottom: 1px solid #94a3b8;
+  height: 40px;
+  margin-bottom: 6px;
+}
+.transcript-foot span { font-size: .85rem; color: var(--muted); }
+.transcript-generated {
+  grid-column: 1 / -1;
+  margin: 18px 0 0;
+  font-size: .78rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+@media print {
+  .sidebar,
+  .sidebar-backdrop,
+  .topbar,
+  .no-print,
+  .toast-stack,
+  .toolbar,
+  footer.app-footer,
+  .nav-logout {
+    display: none !important;
+  }
+  .app-shell { display: block !important; }
+  .app-main { margin: 0 !important; padding: 0 !important; }
+  .page-content { padding: 0 !important; }
+  .transcript-sheet {
+    box-shadow: none;
+    border: 0;
+    border-radius: 0;
+    max-width: none;
+    padding: 0;
+  }
+  body { background: #fff !important; }
+}

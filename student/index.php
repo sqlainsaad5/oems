@@ -51,6 +51,9 @@ $results = db()->prepare(
 $results->execute([$sid]);
 $results = $results->fetchAll();
 
+require_once dirname(__DIR__) . '/includes/gpa_helpers.php';
+$gpaSummary = compute_student_gpa($sid);
+
 $pageTitle = 'Dashboard';
 $pageSubtitle = 'Welcome back, ' . ($student['full_name'] ?? $user['full_name']);
 $activeNav = 'dashboard';
@@ -61,10 +64,10 @@ require dirname(__DIR__) . '/includes/header.php';
     <div class="portal-hero-content">
         <p class="portal-eyebrow">Student workspace</p>
         <h2>Hi, <?= e(explode(' ', $student['full_name'] ?? $user['full_name'])[0]) ?></h2>
-        <p><?= $counts['available'] > 0 ? "You have {$counts['available']} paper(s) ready to attempt." : 'Browse available papers and track your results.' ?></p>
+        <p><?= $counts['available'] > 0 ? "You have {$counts['available']} paper(s) ready to attempt." : 'Browse available papers and track your results & CGPA.' ?></p>
         <div class="portal-hero-actions">
             <a class="btn btn-primary" href="<?= url('/student/exams.php') ?>">Available Papers</a>
-            <a class="btn btn-secondary" href="<?= url('/student/results.php') ?>">My Results</a>
+            <a class="btn btn-secondary" href="<?= url('/student/gpa.php') ?>">SGPA / CGPA</a>
         </div>
     </div>
     <div class="portal-hero-visual" aria-hidden="true">
@@ -79,7 +82,7 @@ require dirname(__DIR__) . '/includes/header.php';
     <div class="stat-card" style="--i:2"><div class="stat-icon"><?= oems_icon('activity') ?></div><div class="stat-label">Expired / Missed</div><div class="stat-value"><?= $counts['expired'] ?></div><div class="stat-meta">Time window passed</div></div>
     <div class="stat-card" style="--i:3"><div class="stat-icon"><?= oems_icon('check') ?></div><div class="stat-label">Completed</div><div class="stat-value"><?= $counts['completed'] ?></div><div class="stat-meta">Successfully submitted</div></div>
     <div class="stat-card" style="--i:4"><div class="stat-icon"><?= oems_icon('award') ?></div><div class="stat-label">Published Results</div><div class="stat-value"><?= $counts['published'] ?></div><div class="stat-meta">Evaluations completed</div></div>
-    <div class="stat-card" style="--i:5"><div class="stat-icon"><?= oems_icon('chart') ?></div><div class="stat-label">Completion Rate</div><div class="stat-value"><?= $completionRate ?>%</div><div class="stat-meta"><?= $counts['completed'] ?> of <?= $totalRelevant ?> exams</div></div>
+    <div class="stat-card" style="--i:5"><div class="stat-icon"><?= oems_icon('chart') ?></div><div class="stat-label">CGPA</div><div class="stat-value"><?= e(format_gpa($gpaSummary['cgpa'])) ?></div><div class="stat-meta"><a href="<?= url('/student/gpa.php') ?>">View SGPA / CGPA →</a></div></div>
 </div>
 
 <div class="grid grid-2">
