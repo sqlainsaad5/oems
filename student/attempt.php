@@ -52,13 +52,18 @@ if ($attempt && in_array($attempt['status'], ['submitted', 'auto_submitted'], tr
                 COALESCE(SUM(CASE WHEN q.question_type='mcq' THEN eq.marks ELSE 0 END),0) AS mcq_total,
                 COALESCE(SUM(CASE WHEN q.question_type='mcq' AND sa.is_graded=1 THEN sa.marks_obtained ELSE 0 END),0) AS mcq_obtained,
                 COALESCE(SUM(CASE WHEN q.question_type='mcq' AND sa.is_correct=1 THEN 1 ELSE 0 END),0) AS correct,
-                COALESCE(SUM(CASE WHEN q.question_type='mcq' THEN 1 ELSE 0 END),0) AS mcq_q
+                COALESCE(SUM(CASE WHEN q.question_type='mcq' THEN 1 ELSE 0 END),0) AS mcq_q,
+                COALESCE(SUM(CASE WHEN q.question_type='descriptive' THEN 1 ELSE 0 END),0) AS desc_q
              FROM exam_questions eq
              JOIN questions q ON q.id=eq.question_id
-             LEFT JOIN student_answers sa ON sa.exam_id=eq.exam_id AND sa.question_id=eq.question_id AND sa.student_id=?"
+             LEFT JOIN student_answers sa
+               ON sa.exam_id=eq.exam_id AND sa.question_id=eq.question_id AND sa.student_id=?
+             WHERE eq.exam_id=?"
         );
-        $summaryAll->execute([$sid]);
+        $summaryAll->execute([$sid, $examId]);
         $sum = $summaryAll->fetch() ?: [];
+        $mcqCount = (int)($sum['mcq_q'] ?? 0);
+        $descCount = (int)($sum['desc_q'] ?? 0);
         $pageTitle = 'Paper submitted';
         $activeNav = 'exams';
         $bodyClass = 'exam-gate';
@@ -67,13 +72,26 @@ if ($attempt && in_array($attempt['status'], ['submitted', 'auto_submitted'], tr
         <div class="exam-gate-card panel">
             <div class="exam-gate-header"><h2>Paper submitted successfully</h2></div>
             <div class="exam-gate-body">
-                <p>Your answers are locked. Here is your objective (MCQ) summary:</p>
-                <div class="summary-banner">
-                    <div><span>MCQ Marks</span><strong><?= e((string)($sum['mcq_obtained'] ?? 0)) ?> / <?= e((string)($sum['mcq_total'] ?? 0)) ?></strong></div>
-                    <div><span>Correct</span><strong><?= (int)($sum['correct'] ?? 0) ?></strong></div>
-                    <div><span>MCQ Questions</span><strong><?= (int)($sum['mcq_q'] ?? 0) ?></strong></div>
-                </div>
-                <p style="margin-top:14px;color:var(--muted);font-size:.9rem">Descriptive answers (if any) will be graded by your teacher. Final result appears after publish.</p>
+                <p>Your answers are locked.</p>
+                <?php if ($mcqCount > 0): ?>
+                    <p>Here is your objective (MCQ) summary for this paper:</p>
+                    <div class="summary-banner">
+                        <div><span>MCQ Marks</span><strong><?= e((string)($sum['mcq_obtained'] ?? 0)) ?> / <?= e((string)($sum['mcq_total'] ?? 0)) ?></strong></div>
+                        <div><span>Correct</span><strong><?= (int)($sum['correct'] ?? 0) ?></strong></div>
+                        <div><span>MCQ Questions</span><strong><?= $mcqCount ?></strong></div>
+                    </div>
+                <?php else: ?>
+                    <div class="alert alert-info" style="margin-top:12px">
+                        This paper has no MCQ questions. No automatic objective score to show.
+                    </div>
+                <?php endif; ?>
+                <?php if ($descCount > 0): ?>
+                    <p style="margin-top:14px;color:var(--muted);font-size:.9rem">
+                        <?= $descCount ?> descriptive answer(s) will be graded manually by your teacher. Final result appears after publish.
+                    </p>
+                <?php elseif ($mcqCount > 0): ?>
+                    <p style="margin-top:14px;color:var(--muted);font-size:.9rem">Final result appears after your teacher publishes results.</p>
+                <?php endif; ?>
                 <a class="btn btn-primary" style="width:100%;margin-top:16px;text-align:center" href="<?= url('/student/exams.php') ?>">Back to Available Papers</a>
             </div>
         </div>
