@@ -449,6 +449,7 @@ require dirname(__DIR__) . '/includes/header.php';
                 <span>Roll No: <?= e($student['student_id']) ?></span>
                 <span>Semester: <?= $exam['semester'] !== null ? (int)$exam['semester'] : '—' ?></span>
                 <span>Duration: <?= (int)$exam['duration_minutes'] ?> minutes</span>
+                <span>Total Marks: <?= e((string)$exam['total_marks']) ?></span>
             </div>
             <span class="badge badge-warning">Current Section: <?= e($currentSection['section_code'] . ' (' . $currentSection['section_type'] . ')') ?></span>
         </div>
