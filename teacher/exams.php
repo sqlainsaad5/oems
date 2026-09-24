@@ -137,10 +137,16 @@ if (is_post()) {
                 $qids = array_map('intval', (array)($sectionQuestions[$i] ?? []));
                 if ($mode === 'random' && $i === 0) {
                     $count = max(1, (int)$randomCount);
+                    $typeSql = $secType === 'mixed' ? '' : ' AND question_type=?';
                     $rq = db()->prepare(
-                        'SELECT id, marks, question_type FROM questions WHERE subject_id=? AND teacher_id=? AND status="active" ORDER BY RAND() LIMIT ' . $count
+                        'SELECT id, marks, question_type FROM questions WHERE subject_id=? AND teacher_id=? AND status="active"'
+                        . $typeSql . ' ORDER BY RAND() LIMIT ' . $count
                     );
-                    $rq->execute([$subjectId, $tid]);
+                    $rqArgs = [$subjectId, $tid];
+                    if ($secType !== 'mixed') {
+                        $rqArgs[] = $secType;
+                    }
+                    $rq->execute($rqArgs);
                     $order = 1;
                     foreach ($rq->fetchAll() as $q) {
                         $insEq->execute([$examId, $q['id'], $sectionId, $q['marks'], $order++]);
@@ -149,13 +155,17 @@ if (is_post()) {
                 } else {
                     $order = 1;
                     foreach ($qids as $qid) {
-                        $qs = db()->prepare('SELECT id, marks FROM questions WHERE id=? AND teacher_id=? AND subject_id=?');
+                        $qs = db()->prepare('SELECT id, marks, question_type FROM questions WHERE id=? AND teacher_id=? AND subject_id=?');
                         $qs->execute([$qid, $tid, $subjectId]);
                         $q = $qs->fetch();
-                        if ($q) {
-                            $insEq->execute([$examId, $q['id'], $sectionId, $q['marks'], $order++]);
-                            $anyQuestions = true;
+                        if (!$q) {
+                            continue;
                         }
+                        if ($secType !== 'mixed' && ($q['question_type'] ?? '') !== $secType) {
+                            continue;
+                        }
+                        $insEq->execute([$examId, $q['id'], $sectionId, $q['marks'], $order++]);
+                        $anyQuestions = true;
                     }
                 }
             }
@@ -400,7 +410,7 @@ if (!$editSections && $showModal) {
                             <div class="form-group"><label>Section title</label><input class="form-control" name="section_title[]" value="<?= e($sec['title']) ?>" required></div>
                             <div class="form-group"><label>Code</label><input class="form-control" name="section_code[]" value="<?= e($sec['section_code']) ?>" maxlength="5"></div>
                             <div class="form-group"><label>Type</label>
-                                <select class="form-select" name="section_type[]">
+                                <select class="form-select section-type-select" name="section_type[]">
                                     <?php foreach (['mcq','descriptive','mixed'] as $t): ?>
                                         <option value="<?= $t ?>" <?= ($sec['section_type'] ?? '')===$t?'selected':'' ?>><?= ucfirst($t) ?></option>
                                     <?php endforeach; ?>
@@ -409,7 +419,7 @@ if (!$editSections && $showModal) {
                         </div>
                         <div class="section-qs list-feed" style="max-height:180px;overflow:auto">
                             <?php foreach ($bank as $q): ?>
-                                <label class="feed-item" data-subject="<?= (int)$q['subject_id'] ?>" style="cursor:pointer">
+                                <label class="feed-item" data-subject="<?= (int)$q['subject_id'] ?>" data-qtype="<?= e($q['question_type']) ?>" style="cursor:pointer">
                                     <input type="checkbox" name="section_questions[<?= (int)$si ?>][]" value="<?= (int)$q['id'] ?>" <?= in_array((int)$q['id'], $sel, true)?'checked':'' ?>>
                                     <div>
                                         <strong><?= e(mb_strimwidth($q['question_text'], 0, 90, '…')) ?></strong>
@@ -439,16 +449,29 @@ if (!$editSections && $showModal) {
   const schedule=document.getElementById('scheduleRow');
   function syncMode(){ rand.style.display = mode.value==='random' ? '' : 'none'; }
   function syncAvail(){ schedule.style.opacity = avail.value==='always' ? '.45' : '1'; }
-  function syncSubject(){
-    const sid = subj.value;
-    document.querySelectorAll('.section-qs .feed-item').forEach(el=>{
-      el.style.display = el.dataset.subject === sid ? '' : 'none';
+  function syncSectionQuestions(){
+    const sid = subj?.value || '';
+    document.querySelectorAll('[data-section-block]').forEach(block=>{
+      const secType = block.querySelector('.section-type-select')?.value || 'mixed';
+      block.querySelectorAll('.section-qs .feed-item').forEach(el=>{
+        const matchSubject = el.dataset.subject === sid;
+        const matchType = secType === 'mixed' || el.dataset.qtype === secType;
+        const show = matchSubject && matchType;
+        el.style.display = show ? '' : 'none';
+        if (!show) {
+          const cb = el.querySelector('input[type="checkbox"]');
+          if (cb) cb.checked = false;
+        }
+      });
     });
   }
   mode?.addEventListener('change', syncMode);
   avail?.addEventListener('change', syncAvail);
-  subj?.addEventListener('change', syncSubject);
-  syncMode(); syncAvail(); syncSubject();
+  subj?.addEventListener('change', syncSectionQuestions);
+  document.querySelectorAll('.section-type-select').forEach(sel=>{
+    sel.addEventListener('change', syncSectionQuestions);
+  });
+  syncMode(); syncAvail(); syncSectionQuestions();
 })();
 </script>
 <?php require dirname(__DIR__) . '/includes/footer.php'; ?>
