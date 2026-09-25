@@ -62,15 +62,15 @@ require dirname(__DIR__) . '/includes/header.php';
 <div class="grid grid-4 stagger-in" style="margin-bottom:18px">
     <div class="stat-card" style="--i:0">
         <div class="stat-icon"><?= oems_icon('users') ?></div>
-        <div class="stat-label">Students</div>
+        <div class="stat-label">Total Students</div>
         <div class="stat-value" data-count="<?= $stats['students'] ?>"><?= $stats['students'] ?></div>
-        <div class="stat-meta"><?= $stats['teachers'] ?> teachers · <?= $stats['users'] ?> total users</div>
+        <div class="stat-meta"><a href="<?= url('/admin/users.php?role=student') ?>">View students →</a></div>
     </div>
     <div class="stat-card" style="--i:1">
-        <div class="stat-icon"><?= oems_icon('clipboard') ?></div>
-        <div class="stat-label">Mega Exams</div>
-        <div class="stat-value" data-count="<?= $stats['mega'] ?>"><?= $stats['mega'] ?></div>
-        <div class="stat-meta"><?= $stats['exams'] ?> papers total</div>
+        <div class="stat-icon"><?= oems_icon('users') ?></div>
+        <div class="stat-label">Total Teachers</div>
+        <div class="stat-value" data-count="<?= $stats['teachers'] ?>"><?= $stats['teachers'] ?></div>
+        <div class="stat-meta"><a href="<?= url('/admin/users.php?role=teacher') ?>">View teachers →</a></div>
     </div>
     <div class="stat-card" style="--i:2">
         <div class="stat-icon"><?= oems_icon('check') ?></div>
@@ -82,7 +82,7 @@ require dirname(__DIR__) . '/includes/header.php';
         <div class="stat-icon"><?= oems_icon('award') ?></div>
         <div class="stat-label">Published Results</div>
         <div class="stat-value" data-count="<?= $stats['results'] ?>"><?= $stats['results'] ?></div>
-        <div class="stat-meta"><?= $stats['questions'] ?> bank questions</div>
+        <div class="stat-meta"><?= $stats['mega'] ?> mega · <?= $stats['exams'] ?> papers</div>
     </div>
 </div>
 
