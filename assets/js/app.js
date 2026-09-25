@@ -70,6 +70,9 @@
     if (modal && modal.classList.contains('modal-backdrop')) {
       modal.hidden = true;
       modal.setAttribute('hidden', '');
+      if (!document.querySelector('.modal-backdrop:not([hidden])')) {
+        document.body.style.overflow = '';
+      }
     }
   }
   function openModal(id) {
@@ -77,6 +80,7 @@
     if (modal) {
       modal.hidden = false;
       modal.removeAttribute('hidden');
+      document.body.style.overflow = 'hidden';
     }
   }
   document.querySelectorAll('[data-modal-open]').forEach((btn) => {

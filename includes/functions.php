@@ -300,6 +300,48 @@ function validate_required(array $data, array $fields): array
     return $errors;
 }
 
+/**
+ * Normalize / validate Pakistani mobile numbers.
+ * Accepts: +92 3XXXXXXXXX, +923XXXXXXXXX, 03XXXXXXXXX, 3XXXXXXXXX
+ * Returns canonical "+92 3XXXXXXXXX" or null if invalid / empty.
+ */
+function normalize_pk_mobile(?string $phone): ?string
+{
+    $phone = trim((string)$phone);
+    if ($phone === '') {
+        return null;
+    }
+    $digits = preg_replace('/\D+/', '', $phone) ?? '';
+    if ($digits === '') {
+        return null;
+    }
+    if (str_starts_with($digits, '0092')) {
+        $digits = substr($digits, 2);
+    }
+    if (str_starts_with($digits, '92') && strlen($digits) === 12) {
+        $local = substr($digits, 2);
+    } elseif (str_starts_with($digits, '0') && strlen($digits) === 11) {
+        $local = substr($digits, 1);
+    } elseif (strlen($digits) === 10) {
+        $local = $digits;
+    } else {
+        return null;
+    }
+    if (!preg_match('/^3\d{9}$/', $local)) {
+        return null;
+    }
+    return '+92 ' . $local;
+}
+
+function is_valid_pk_mobile(?string $phone): bool
+{
+    $phone = trim((string)$phone);
+    if ($phone === '') {
+        return true; // optional
+    }
+    return normalize_pk_mobile($phone) !== null;
+}
+
 function old(string $key, mixed $default = ''): mixed
 {
     start_app_session();

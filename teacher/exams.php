@@ -51,6 +51,13 @@ if (is_post()) {
         if ($availability === 'always') {
             $start = $start !== '' ? $start : date('Y-m-d H:i:s', strtotime('-1 day'));
             $end = $end !== '' ? $end : date('Y-m-d H:i:s', strtotime('+10 years'));
+        } else {
+            // Duration follows the scheduled window (start → end).
+            $startTs = strtotime(str_replace('T', ' ', $start));
+            $endTs = strtotime(str_replace('T', ' ', $end));
+            if ($startTs && $endTs && $endTs > $startTs) {
+                $duration = max(5, (int)round(($endTs - $startTs) / 60));
+            }
         }
         $examPassword = trim((string)request('exam_password'));
         $mode = (string)request('selection_mode', 'manual');
@@ -380,14 +387,26 @@ if (!$editSections && $showModal) {
                             <option value="always" <?= ($edit['availability_mode'] ?? '')==='always'?'selected':'' ?>>Always available</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>Exam password (optional)</label><input class="form-control" name="exam_password" value="<?= e($edit['exam_password'] ?? '') ?>" placeholder="Students enter before start"></div>
+                    <div class="form-group">
+                        <label>Exam password (optional)</label>
+                        <div class="password-field">
+                            <input class="form-control" type="password" name="exam_password" id="examPassword" value="<?= e($edit['exam_password'] ?? '') ?>" placeholder="Students enter before start" autocomplete="new-password">
+                            <button type="button" class="password-toggle" id="examPasswordToggle" aria-label="Show password" title="Show password">
+                                <?= oems_icon('eye') ?>
+                            </button>
+                        </div>
+                    </div>
                 </div>
                 <div class="form-row" id="scheduleRow">
-                    <div class="form-group"><label>Start</label><input class="form-control" type="datetime-local" name="start_time" value="<?= e($edit ? date('Y-m-d\TH:i', strtotime($edit['start_time'])) : '') ?>"></div>
-                    <div class="form-group"><label>End</label><input class="form-control" type="datetime-local" name="end_time" value="<?= e($edit ? date('Y-m-d\TH:i', strtotime($edit['end_time'])) : '') ?>"></div>
+                    <div class="form-group"><label>Start</label><input class="form-control" type="datetime-local" name="start_time" id="examStart" value="<?= e($edit ? date('Y-m-d\TH:i', strtotime($edit['start_time'])) : '') ?>"></div>
+                    <div class="form-group"><label>End</label><input class="form-control" type="datetime-local" name="end_time" id="examEnd" value="<?= e($edit ? date('Y-m-d\TH:i', strtotime($edit['end_time'])) : '') ?>"></div>
                 </div>
                 <div class="form-row">
-                    <div class="form-group"><label>Duration (minutes)</label><input class="form-control" type="number" name="duration_minutes" min="5" value="<?= e((string)($edit['duration_minutes'] ?? get_setting('default_exam_duration','60'))) ?>"></div>
+                    <div class="form-group">
+                        <label>Duration (minutes)</label>
+                        <input class="form-control" type="number" name="duration_minutes" id="examDuration" min="0" value="<?= e((string)($edit['duration_minutes'] ?? '0')) ?>">
+                        <small id="durationHint" style="color:var(--muted);display:block;margin-top:6px">Set from Start → End when scheduled.</small>
+                    </div>
                     <div class="form-group"><label>Passing marks</label><input class="form-control" type="number" step="0.5" name="passing_marks" value="<?= e((string)($edit['passing_marks'] ?? '0')) ?>"></div>
                     <div class="form-group"><label>Question selection</label>
                         <select class="form-select" name="selection_mode" id="selMode">
@@ -447,8 +466,34 @@ if (!$editSections && $showModal) {
   const subj=document.getElementById('examSubject');
   const avail=document.getElementById('availMode');
   const schedule=document.getElementById('scheduleRow');
+  const startInput=document.getElementById('examStart');
+  const endInput=document.getElementById('examEnd');
+  const durationInput=document.getElementById('examDuration');
+  const durationHint=document.getElementById('durationHint');
   function syncMode(){ rand.style.display = mode.value==='random' ? '' : 'none'; }
-  function syncAvail(){ schedule.style.opacity = avail.value==='always' ? '.45' : '1'; }
+  function syncDurationFromSchedule(){
+    if (!startInput || !endInput || !durationInput) return;
+    if (avail?.value === 'always') {
+      durationInput.readOnly = false;
+      if (durationHint) durationHint.textContent = 'Set manually when paper is always available.';
+      return;
+    }
+    durationInput.readOnly = true;
+    const s = startInput.value ? new Date(startInput.value) : null;
+    const e = endInput.value ? new Date(endInput.value) : null;
+    if (s && e && !isNaN(s) && !isNaN(e) && e > s) {
+      const mins = Math.max(5, Math.round((e - s) / 60000));
+      durationInput.value = String(mins);
+      if (durationHint) durationHint.textContent = 'Auto-set from Start → End (' + mins + ' min).';
+    } else {
+      durationInput.value = '0';
+      if (durationHint) durationHint.textContent = 'Pick Start and End — duration fills automatically.';
+    }
+  }
+  function syncAvail(){
+    schedule.style.opacity = avail.value==='always' ? '.45' : '1';
+    syncDurationFromSchedule();
+  }
   function syncSectionQuestions(){
     const sid = subj?.value || '';
     document.querySelectorAll('[data-section-block]').forEach(block=>{
@@ -467,11 +512,27 @@ if (!$editSections && $showModal) {
   }
   mode?.addEventListener('change', syncMode);
   avail?.addEventListener('change', syncAvail);
+  startInput?.addEventListener('change', syncDurationFromSchedule);
+  endInput?.addEventListener('change', syncDurationFromSchedule);
+  startInput?.addEventListener('input', syncDurationFromSchedule);
+  endInput?.addEventListener('input', syncDurationFromSchedule);
+  const pwd=document.getElementById('examPassword');
+  const pwdToggle=document.getElementById('examPasswordToggle');
+  const eyeSvg = <?= json_encode(oems_icon('eye')) ?>;
+  const eyeOffSvg = <?= json_encode(oems_icon('eye-off')) ?>;
+  pwdToggle?.addEventListener('click', ()=>{
+    if (!pwd) return;
+    const show = pwd.type === 'password';
+    pwd.type = show ? 'text' : 'password';
+    pwdToggle.innerHTML = show ? eyeOffSvg : eyeSvg;
+    pwdToggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    pwdToggle.setAttribute('title', show ? 'Hide password' : 'Show password');
+  });
   subj?.addEventListener('change', syncSectionQuestions);
   document.querySelectorAll('.section-type-select').forEach(sel=>{
     sel.addEventListener('change', syncSectionQuestions);
   });
-  syncMode(); syncAvail(); syncSectionQuestions();
+  syncMode(); syncAvail(); syncSectionQuestions(); syncDurationFromSchedule();
 })();
 </script>
 <?php require dirname(__DIR__) . '/includes/footer.php'; ?>

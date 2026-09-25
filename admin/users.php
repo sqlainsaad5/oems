@@ -37,6 +37,10 @@ if (is_post()) {
         if (!in_array($data['role'], ['admin', 'teacher', 'student'], true)) {
             $errors['role'] = 'Invalid role.';
         }
+        // New accounts only via Add student / Add teacher (not generic admin).
+        if ($action === 'create' && !in_array($data['role'], ['student', 'teacher'], true)) {
+            $errors['role'] = 'Use Add student or Add teacher.';
+        }
         if ($action === 'create' && $data['password'] === '') {
             $errors['password'] = 'Password is required for new users.';
         }
@@ -45,6 +49,11 @@ if (is_post()) {
         }
         if ($data['role'] === 'teacher' && $data['employee_id'] === '') {
             $errors['employee_id'] = 'Employee ID is required.';
+        }
+        if ($data['phone'] !== '' && !is_valid_pk_mobile($data['phone'])) {
+            $errors['phone'] = 'Enter a valid Pakistani mobile (e.g. +92 3001234567 or 03001234567).';
+        } elseif ($data['phone'] !== '') {
+            $data['phone'] = normalize_pk_mobile($data['phone']) ?? $data['phone'];
         }
 
         if (!$errors) {
@@ -64,8 +73,11 @@ if (is_post()) {
                         db()->prepare('INSERT INTO teachers (user_id, employee_id, department, phone) VALUES (?,?,?,?)')
                             ->execute([$uid, $data['employee_id'], $data['department'] ?: null, $data['phone'] ?: null]);
                     }
-                    log_activity((int)$user['id'], 'user_create', "Created user {$data['username']}");
-                    flash('success', 'User created successfully.');
+                    log_activity((int)$user['id'], 'user_create', "Created {$data['role']} {$data['username']}");
+                    flash('success', $data['role'] === 'student' ? 'Student created successfully.' : 'Teacher created successfully.');
+                    db()->commit();
+                    $backRole = in_array($data['role'], ['student', 'teacher'], true) ? $data['role'] : '';
+                    redirect('/admin/users.php' . ($backRole !== '' ? '?role=' . rawurlencode($backRole) : ''));
                 } else {
                     $fields = 'username=?, email=?, full_name=?, role=?, status=?';
                     $params = [$data['username'], $data['email'], $data['full_name'], $data['role'], $data['status']];
@@ -99,9 +111,10 @@ if (is_post()) {
                     }
                     log_activity((int)$user['id'], 'user_update', "Updated user #{$id}");
                     flash('success', 'User updated successfully.');
+                    db()->commit();
+                    $backRole = in_array($data['role'], ['student', 'teacher'], true) ? $data['role'] : '';
+                    redirect('/admin/users.php' . ($backRole !== '' ? '?role=' . rawurlencode($backRole) : ''));
                 }
-                db()->commit();
-                redirect('/admin/users.php');
             } catch (PDOException $e) {
                 db()->rollBack();
                 $errors['form'] = str_contains($e->getMessage(), 'Duplicate')
@@ -208,27 +221,75 @@ if ($editId) {
     }
 }
 
-$pageTitle = 'Users';
-$pageSubtitle = 'Manage administrators, teachers, and students';
-$activeNav = 'users';
+// Create flow: ?new=student | ?new=teacher (no generic Add user)
+$createRole = (string)request('new', '');
+if ($errors && !$editUser) {
+    $createRole = (string)old('role', $createRole);
+}
+if (!in_array($createRole, ['student', 'teacher'], true)) {
+    $createRole = '';
+}
+$formRole = $editUser['role'] ?? ($createRole !== '' ? $createRole : (in_array($roleFilter, ['student', 'teacher'], true) ? $roleFilter : 'student'));
+$showUserModal = (bool)$editUser || $createRole !== '' || ($errors && !$editUser);
+$modalTitle = $editUser
+    ? 'Edit user'
+    : ($formRole === 'teacher' ? 'Add teacher' : 'Add student');
+$saveLabel = $editUser
+    ? 'Save user'
+    : ($formRole === 'teacher' ? 'Save teacher' : 'Save student');
+$listQuery = in_array($roleFilter, ['student', 'teacher'], true) ? ('?role=' . rawurlencode($roleFilter)) : '';
+$listUrl = url('/admin/users.php' . $listQuery);
+
+$pageTitle = match ($roleFilter) {
+    'student' => 'Students',
+    'teacher' => 'Teachers',
+    'admin' => 'Administrators',
+    default => 'Students & Teachers',
+};
+$pageSubtitle = match ($roleFilter) {
+    'student' => 'Add and manage student accounts',
+    'teacher' => 'Add and manage teacher accounts',
+    'admin' => 'Manage administrator accounts',
+    default => 'Manage students, teachers, and administrators',
+};
+$activeNav = match ($roleFilter) {
+    'teacher' => 'teachers',
+    'student' => 'students',
+    default => (($editUser['role'] ?? $createRole) === 'teacher' ? 'teachers' : 'students'),
+};
 require dirname(__DIR__) . '/includes/header.php';
-clear_old();
 ?>
 
 <div class="toolbar">
-    <form class="toolbar-left" method="get">
-        <input class="form-control search-box" type="search" name="q" value="<?= e($q) ?>" placeholder="Search users…">
-        <select class="form-select" name="role" style="width:auto">
-            <option value="">All roles</option>
-            <?php foreach (['admin','teacher','student'] as $r): ?>
-                <option value="<?= $r ?>" <?= $roleFilter === $r ? 'selected' : '' ?>><?= ucfirst($r) ?></option>
-            <?php endforeach; ?>
-        </select>
-        <button class="btn btn-secondary" type="submit">Filter</button>
+    <form class="toolbar-left" method="get" style="flex:1;min-width:min(320px,100%)">
+        <?php if (in_array($roleFilter, ['student', 'teacher'], true)): ?>
+            <input type="hidden" name="role" value="<?= e($roleFilter) ?>">
+            <div class="search-inline">
+                <input class="form-control search-box" type="search" name="q" value="<?= e($q) ?>" placeholder="Search by name, username, email…">
+                <button class="btn btn-secondary" type="submit">Search</button>
+            </div>
+        <?php else: ?>
+            <input class="form-control search-box" type="search" name="q" value="<?= e($q) ?>" placeholder="Search by name, username, email…">
+            <select class="form-select" name="role" style="width:auto">
+                <option value="">All roles</option>
+                <?php foreach (['admin','teacher','student'] as $r): ?>
+                    <option value="<?= $r ?>" <?= $roleFilter === $r ? 'selected' : '' ?>><?= ucfirst($r) ?></option>
+                <?php endforeach; ?>
+            </select>
+            <button class="btn btn-secondary" type="submit">Filter</button>
+        <?php endif; ?>
     </form>
     <div class="toolbar-right">
-        <button class="btn btn-secondary" type="button" data-modal-open="csvModal">Bulk CSV</button>
-        <button class="btn btn-primary" type="button" data-modal-open="userModal"><?= oems_icon('plus') ?> Add user</button>
+        <?php if ($roleFilter === 'student'): ?>
+            <button class="btn btn-secondary" type="button" data-modal-open="csvModal">Bulk CSV</button>
+            <button class="btn btn-primary" type="button" data-modal-open="userModal" data-create-role="student"><?= oems_icon('plus') ?> Add student</button>
+        <?php elseif ($roleFilter === 'teacher'): ?>
+            <button class="btn btn-primary" type="button" data-modal-open="userModal" data-create-role="teacher"><?= oems_icon('plus') ?> Add teacher</button>
+        <?php else: ?>
+            <button class="btn btn-secondary" type="button" data-modal-open="csvModal">Bulk CSV</button>
+            <button class="btn btn-secondary" type="button" data-modal-open="userModal" data-create-role="teacher"><?= oems_icon('plus') ?> Add teacher</button>
+            <button class="btn btn-primary" type="button" data-modal-open="userModal" data-create-role="student"><?= oems_icon('plus') ?> Add student</button>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -281,16 +342,16 @@ clear_old();
     <?php endif; ?>
 </section>
 
-<div class="modal-backdrop" id="userModal" <?= $editUser || $errors ? '' : 'hidden' ?>>
+<div class="modal-backdrop" id="userModal" <?= $showUserModal ? '' : 'hidden' ?>>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
         <div class="modal-header">
-            <h2 id="userModalTitle"><?= $editUser ? 'Edit user' : 'Add user' ?></h2>
+            <h2 id="userModalTitle"><?= e($modalTitle) ?></h2>
             <button type="button" class="icon-btn" data-modal-close aria-label="Close"><?= oems_icon('x') ?></button>
         </div>
-        <form method="post">
+        <form method="post" id="userForm" action="<?= e($listUrl) ?>">
             <?= csrf_field() ?>
-            <input type="hidden" name="action" value="<?= $editUser ? 'update' : 'create' ?>">
-            <?php if ($editUser): ?><input type="hidden" name="id" value="<?= (int)$editUser['id'] ?>"><?php endif; ?>
+            <input type="hidden" name="action" id="userFormAction" value="<?= $editUser ? 'update' : 'create' ?>">
+            <?php if ($editUser): ?><input type="hidden" name="id" id="userFormId" value="<?= (int)$editUser['id'] ?>"><?php endif; ?>
             <div class="modal-body">
                 <div class="form-row">
                     <div class="form-group">
@@ -308,50 +369,57 @@ clear_old();
                         <input class="form-control" type="email" name="email" required value="<?= e($editUser['email'] ?? old('email')) ?>">
                     </div>
                     <div class="form-group">
-                        <label>Password <?= $editUser ? '(leave blank to keep)' : '' ?></label>
-                        <input class="form-control" type="password" name="password" <?= $editUser ? '' : 'required' ?>>
+                        <label>Password <span id="passwordHint"><?= $editUser ? '(leave blank to keep)' : '' ?></span></label>
+                        <input class="form-control" type="password" name="password" id="userPassword" <?= $editUser ? '' : 'required' ?>>
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label>Role</label>
-                        <select class="form-select" name="role" id="roleSelect" required>
-                            <?php foreach (['admin','teacher','student'] as $r): ?>
-                                <option value="<?= $r ?>" <?= ($editUser['role'] ?? old('role','student')) === $r ? 'selected' : '' ?>><?= ucfirst($r) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <?php if ($editUser): ?>
+                            <select class="form-select" name="role" id="roleSelect" required>
+                                <?php foreach (['admin','teacher','student'] as $r): ?>
+                                    <option value="<?= $r ?>" <?= $formRole === $r ? 'selected' : '' ?>><?= ucfirst($r) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        <?php else: ?>
+                            <input type="hidden" name="role" id="roleSelect" value="<?= e($formRole) ?>">
+                            <div class="form-control" id="roleBadgeWrap" style="display:flex;align-items:center;background:var(--surface-2, #f3f4f6)">
+                                <span class="badge badge-brand" id="roleBadge"><?= e($formRole) ?></span>
+                            </div>
+                        <?php endif; ?>
                     </div>
                     <div class="form-group">
                         <label>Status</label>
                         <select class="form-select" name="status">
                             <?php foreach (['active','inactive','suspended'] as $s): ?>
-                                <option value="<?= $s ?>" <?= ($editUser['status'] ?? 'active') === $s ? 'selected' : '' ?>><?= ucfirst($s) ?></option>
+                                <option value="<?= $s ?>" <?= ($editUser['status'] ?? old('status', 'active')) === $s ? 'selected' : '' ?>><?= ucfirst($s) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                 </div>
-                <div id="studentFields">
+                <div id="studentFields" <?= $formRole === 'student' ? '' : 'style="display:none"' ?>>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Student ID</label>
-                            <input class="form-control" name="student_id" value="<?= e($editProfile['student_id'] ?? old('student_id')) ?>">
+                            <input class="form-control" name="student_id" id="fieldStudentId" value="<?= e($editProfile['student_id'] ?? old('student_id')) ?>" <?= !$editUser && $formRole === 'student' ? 'required' : '' ?>>
                         </div>
                         <div class="form-group">
                             <label>Course</label>
                             <select class="form-select" name="course_id">
                                 <option value="">— Select —</option>
                                 <?php foreach ($courses as $c): ?>
-                                    <option value="<?= (int)$c['id'] ?>" <?= ((int)($editProfile['course_id'] ?? 0) === (int)$c['id']) ? 'selected' : '' ?>><?= e($c['code'] . ' — ' . $c['name']) ?></option>
+                                    <option value="<?= (int)$c['id'] ?>" <?= ((int)($editProfile['course_id'] ?? old('course_id', 0)) === (int)$c['id']) ? 'selected' : '' ?>><?= e($c['code'] . ' — ' . $c['name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
                     </div>
                 </div>
-                <div id="teacherFields">
+                <div id="teacherFields" <?= $formRole === 'teacher' ? '' : 'style="display:none"' ?>>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Employee ID</label>
-                            <input class="form-control" name="employee_id" value="<?= e($editProfile['employee_id'] ?? old('employee_id')) ?>">
+                            <input class="form-control" name="employee_id" id="fieldEmployeeId" value="<?= e($editProfile['employee_id'] ?? old('employee_id')) ?>" <?= !$editUser && $formRole === 'teacher' ? 'required' : '' ?>>
                         </div>
                         <div class="form-group">
                             <label>Department</label>
@@ -361,12 +429,25 @@ clear_old();
                 </div>
                 <div class="form-group">
                     <label>Phone</label>
-                    <input class="form-control" name="phone" value="<?= e($editProfile['phone'] ?? old('phone')) ?>">
+                    <input
+                        class="form-control"
+                        type="tel"
+                        name="phone"
+                        inputmode="tel"
+                        autocomplete="tel"
+                        placeholder="+92 3001234567"
+                        title="Pakistani mobile: +92 3XXXXXXXXX or 03XXXXXXXXX"
+                        value="<?= e($editProfile['phone'] ?? old('phone')) ?>"
+                    >
+                    <small style="color:var(--muted);display:block;margin-top:6px">Format: +92 3XXXXXXXXX or 03XXXXXXXXX</small>
+                    <?php if (!empty($errors['phone'])): ?>
+                        <small class="field-error" style="color:var(--danger,#b91c1c);display:block;margin-top:4px"><?= e($errors['phone']) ?></small>
+                    <?php endif; ?>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-modal-close>Cancel</button>
-                <button type="submit" class="btn btn-primary">Save user</button>
+                <button type="submit" class="btn btn-primary" id="userSaveBtn"><?= e($saveLabel) ?></button>
             </div>
         </form>
     </div>
@@ -401,12 +482,73 @@ clear_old();
   const role = document.getElementById('roleSelect');
   const sf = document.getElementById('studentFields');
   const tf = document.getElementById('teacherFields');
+  const title = document.getElementById('userModalTitle');
+  const saveBtn = document.getElementById('userSaveBtn');
+  const badge = document.getElementById('roleBadge');
+  const form = document.getElementById('userForm');
+  const actionInput = document.getElementById('userFormAction');
+  const password = document.getElementById('userPassword');
+  const passwordHint = document.getElementById('passwordHint');
+  const studentId = document.getElementById('fieldStudentId');
+  const employeeId = document.getElementById('fieldEmployeeId');
+  const isEditPage = <?= $editUser ? 'true' : 'false' ?>;
+  const listUrl = <?= json_encode($listUrl) ?>;
+
+  function currentRole(){
+    if (!role) return '';
+    return role.tagName === 'SELECT' ? role.value : (role.value || '');
+  }
   function sync(){
-    const v = role.value;
+    if (!sf || !tf) return;
+    const v = currentRole();
     sf.style.display = v === 'student' ? '' : 'none';
     tf.style.display = v === 'teacher' ? '' : 'none';
+    if (studentId) studentId.required = v === 'student' && actionInput?.value === 'create';
+    if (employeeId) employeeId.required = v === 'teacher' && actionInput?.value === 'create';
   }
-  role?.addEventListener('change', sync); sync();
+  function prepareCreate(createRole){
+    if (isEditPage) {
+      window.location.href = listUrl + (listUrl.includes('?') ? '&' : '?') + 'new=' + encodeURIComponent(createRole);
+      return;
+    }
+    if (form) form.reset();
+    if (actionInput) actionInput.value = 'create';
+    const idInput = document.getElementById('userFormId');
+    if (idInput) idInput.remove();
+    if (role && role.tagName !== 'SELECT') role.value = createRole;
+    if (badge) badge.textContent = createRole;
+    if (title) title.textContent = createRole === 'teacher' ? 'Add teacher' : 'Add student';
+    if (saveBtn) saveBtn.textContent = createRole === 'teacher' ? 'Save teacher' : 'Save student';
+    if (password) password.required = true;
+    if (passwordHint) passwordHint.textContent = '';
+    sync();
+  }
+
+  role?.addEventListener('change', sync);
+  sync();
+
+  document.querySelectorAll('[data-create-role]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      prepareCreate(btn.getAttribute('data-create-role') || 'student');
+    });
+  });
+
+  // Keep scroll locked while server-rendered modal is open
+  const modal = document.getElementById('userModal');
+  if (modal && !modal.hasAttribute('hidden')) {
+    document.body.style.overflow = 'hidden';
+  }
+  document.querySelectorAll('#userModal [data-modal-close]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.body.style.overflow = '';
+      if (window.location.search.includes('new=') || window.location.search.includes('edit=')) {
+        window.history.replaceState({}, '', listUrl);
+      }
+    });
+  });
 })();
 </script>
-<?php require dirname(__DIR__) . '/includes/footer.php'; ?>
+<?php
+clear_old();
+require dirname(__DIR__) . '/includes/footer.php';
+?>

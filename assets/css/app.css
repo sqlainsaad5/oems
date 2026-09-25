@@ -516,10 +516,70 @@ textarea.form-control { min-height: 120px; resize: vertical; }
 }
 .toolbar-left, .toolbar-right { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .search-box { min-width: min(280px, 100%); }
+.search-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: min(320px, 100%);
+  flex-wrap: nowrap;
+}
+.search-inline .search-box {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+.search-inline .btn { flex-shrink: 0; }
+
+.password-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.password-field .form-control {
+  width: 100%;
+  padding-right: 44px;
+}
+/* Hide browser built-in password reveal (Edge/IE) — we use our own eye */
+.password-field input[type="password"]::-ms-reveal,
+.password-field input[type="password"]::-ms-clear,
+.password-field input[type="text"]::-ms-reveal,
+.password-field input[type="text"]::-ms-clear {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.password-field .password-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  padding: 0;
+  z-index: 2;
+}
+.password-field .password-toggle:hover {
+  color: var(--ink, #0f172a);
+  background: rgba(15, 23, 42, 0.06);
+}
+.password-field .password-toggle .icon {
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
 
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(16, 24, 40, 0.5);
-  display: grid; place-items: center; padding: 20px; z-index: 60;
+  display: grid; place-items: center; padding: 20px; z-index: 10050;
   backdrop-filter: blur(4px); animation: fadeIn 0.2s ease;
 }
 .modal-backdrop[hidden] {

@@ -71,13 +71,15 @@ require dirname(__DIR__) . '/includes/header.php';
 <section class="panel">
     <div class="table-wrap">
         <table class="table">
-            <thead><tr><th>Name</th><th>Year</th><th>Department</th><th>Students</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Batch</th><th>Department</th><th>Students</th><th>Status</th><th></th></tr></thead>
             <tbody>
-            <?php if (!$rows): ?><tr><td colspan="6"><div class="empty-state"><h3>No batches</h3></div></td></tr><?php endif; ?>
+            <?php if (!$rows): ?><tr><td colspan="5"><div class="empty-state"><h3>No batches</h3></div></td></tr><?php endif; ?>
             <?php foreach ($rows as $r): ?>
                 <tr>
-                    <td><strong><?= e($r['name']) ?></strong></td>
-                    <td><?= e((string)$r['year']) ?></td>
+                    <td>
+                        <strong><?= e($r['name']) ?></strong>
+                        <div style="color:var(--muted);font-size:.85rem;margin-top:2px">Class of <?= (int)$r['year'] ?></div>
+                    </td>
                     <td><?= e($r['department_name'] ?: '—') ?></td>
                     <td><?= (int)$r['student_count'] ?></td>
                     <td><span class="badge <?= $r['status']==='active'?'badge-success':'badge-warning' ?>"><?= e($r['status']) ?></span></td>
@@ -102,8 +104,8 @@ require dirname(__DIR__) . '/includes/header.php';
             <?php if ($edit): ?><input type="hidden" name="id" value="<?= (int)$edit['id'] ?>"><?php endif; ?>
             <div class="modal-body">
                 <div class="form-row">
-                    <div class="form-group"><label>Name</label><input class="form-control" name="name" required value="<?= e($edit['name'] ?? '') ?>" placeholder="Batch 2024"></div>
-                    <div class="form-group"><label>Year</label><input class="form-control" type="number" name="year" min="2000" max="2100" required value="<?= e((string)($edit['year'] ?? date('Y'))) ?>"></div>
+                    <div class="form-group"><label>Batch name</label><input class="form-control" name="name" required value="<?= e($edit['name'] ?? '') ?>" placeholder="e.g. Batch 2024"></div>
+                    <div class="form-group"><label>Class of (year)</label><input class="form-control" type="number" name="year" min="2000" max="2100" required value="<?= e((string)($edit['year'] ?? date('Y'))) ?>"></div>
                 </div>
                 <div class="form-row">
                     <div class="form-group"><label>Department</label>

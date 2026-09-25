@@ -42,7 +42,7 @@ require dirname(__DIR__) . '/includes/header.php';
         <h2>Welcome back, <?= e(explode(' ', $user['full_name'])[0]) ?></h2>
         <p>Monitor users, courses, and live examinations from one calm control center.</p>
         <div class="portal-hero-actions">
-            <a class="btn btn-primary" href="<?= url('/admin/users.php') ?>">Manage users</a>
+            <a class="btn btn-primary" href="<?= url('/admin/users.php?role=student') ?>">Manage students</a>
             <a class="btn btn-secondary" href="<?= url('/admin/reports.php') ?>">View reports</a>
         </div>
     </div>
@@ -56,7 +56,8 @@ require dirname(__DIR__) . '/includes/header.php';
     <a class="quick-action" href="<?= url('/admin/mega_exams.php') ?>"><?= oems_icon('clipboard') ?><span>Mega Exams</span></a>
     <a class="quick-action" href="<?= url('/admin/paper_approvals.php') ?>"><?= oems_icon('check') ?><span>Approvals</span></a>
     <a class="quick-action" href="<?= url('/admin/departments.php') ?>"><?= oems_icon('layers') ?><span>Departments</span></a>
-    <a class="quick-action" href="<?= url('/admin/users.php') ?>"><?= oems_icon('users') ?><span>Users</span></a>
+    <a class="quick-action" href="<?= url('/admin/users.php?role=student') ?>"><?= oems_icon('users') ?><span>Students</span></a>
+    <a class="quick-action" href="<?= url('/admin/users.php?role=teacher') ?>"><?= oems_icon('user') ?><span>Teachers</span></a>
 </div>
 
 <div class="grid grid-4 stagger-in" style="margin-bottom:18px">
